@@ -12,29 +12,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Clear loading message
       activitiesList.innerHTML = "";
+      activitySelect.innerHTML = '<option value="">-- Select an activity --</option>';
 
-      // Populate activities list
-      Object.entries(activities).forEach(([name, details]) => {
-        const activityCard = document.createElement("div");
-        activityCard.className = "activity-card";
-
-        const spotsLeft = details.max_participants - details.participants.length;
-
-        activityCard.innerHTML = `
-          <h4>${name}</h4>
-          <p>${details.description}</p>
-          <p><strong>Schedule:</strong> ${details.schedule}</p>
-          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
-        `;
-
-        activitiesList.appendChild(activityCard);
-
-        // Add option to select dropdown
+      // Populate activities list and dropdown
+      Object.entries(activities).forEach(([activityName, activity]) => {
+        activitiesList.innerHTML += renderActivityCard(activity, activityName);
         const option = document.createElement("option");
-        option.value = name;
-        option.textContent = name;
+        option.value = activityName;
+        option.textContent = activityName;
         activitySelect.appendChild(option);
       });
+      attachDeleteHandlers();
     } catch (error) {
       activitiesList.innerHTML = "<p>Failed to load activities. Please try again later.</p>";
       console.error("Error fetching activities:", error);
@@ -62,6 +50,8 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        // Only update activities after successful registration
+        fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
@@ -85,21 +75,64 @@ document.addEventListener("DOMContentLoaded", () => {
   fetchActivities();
 });
 
-function renderActivityCard(activity) {
+function renderActivityCard(activity, activityName) {
   return `
     <div class="activity-card">
-      <h4>${activity.name}</h4>
+      <h4>${activityName}</h4>
       <p>${activity.description}</p>
       <div class="activity-card-participants">
         <h5>Participants</h5>
         <ul>
           ${
             activity.participants && activity.participants.length > 0
-              ? activity.participants.map(name => `<li>${name}</li>`).join('')
+              ? activity.participants.map(name => `
+                  <li class="participant-item">
+                    <span class="participant-name">${name}</span>
+                    <button class="delete-participant" title="Remove participant" data-activity="${activityName}" data-participant="${name}">🗑️</button>
+                  </li>
+                `).join('')
               : '<li><em>No participants yet</em></li>'
           }
         </ul>
       </div>
     </div>
   `;
+}
+
+// Helper to re-render activities with participants and delete buttons
+async function refreshActivities() {
+  try {
+    const response = await fetch("/activities");
+    const activities = await response.json();
+    const activitiesList = document.getElementById("activities-list");
+    activitiesList.innerHTML = "";
+    Object.entries(activities).forEach(([activityName, activity]) => {
+      activitiesList.innerHTML += renderActivityCard(activity, activityName);
+    });
+    attachDeleteHandlers();
+  } catch (error) {
+    // fallback error
+  }
+}
+
+// Attach click handlers to delete buttons
+function attachDeleteHandlers() {
+  document.querySelectorAll('.delete-participant').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const activity = btn.getAttribute('data-activity');
+      const participant = btn.getAttribute('data-participant');
+      try {
+        const response = await fetch(`/activities/${encodeURIComponent(activity)}/unregister?email=${encodeURIComponent(participant)}`, {
+          method: 'DELETE',
+        });
+        if (response.ok) {
+          refreshActivities();
+        } else {
+          // Optionally show error
+        }
+      } catch (err) {
+        // Optionally show error
+      }
+    });
+  });
 }
