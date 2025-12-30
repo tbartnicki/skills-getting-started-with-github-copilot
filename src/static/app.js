@@ -84,3 +84,22 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize app
   fetchActivities();
 });
+
+function renderActivityCard(activity) {
+  return `
+    <div class="activity-card">
+      <h4>${activity.name}</h4>
+      <p>${activity.description}</p>
+      <div class="activity-card-participants">
+        <h5>Participants</h5>
+        <ul>
+          ${
+            activity.participants && activity.participants.length > 0
+              ? activity.participants.map(name => `<li>${name}</li>`).join('')
+              : '<li><em>No participants yet</em></li>'
+          }
+        </ul>
+      </div>
+    </div>
+  `;
+}
